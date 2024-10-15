@@ -207,11 +207,10 @@ func TestWriteV2RecordBatch(t *testing.T) {
 	}
 
 	w := &Writer{
-		Addr:         TCP("localhost:9092"),
-		Topic:        topic,
-		BatchTimeout: 100 * time.Millisecond,
-		BatchSize:    5,
-		Transport:    client.Transport,
+		Addr:      TCP("localhost:9092"),
+		Topic:     topic,
+		BatchSize: 5,
+		Transport: client.Transport,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

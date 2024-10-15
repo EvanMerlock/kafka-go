@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"math"
 	"reflect"
 	"testing"
@@ -175,7 +175,7 @@ func TestReadNewBytes(t *testing.T) {
 }
 
 func BenchmarkWriteVarInt(b *testing.B) {
-	wb := &writeBuffer{w: ioutil.Discard}
+	wb := &writeBuffer{w: io.Discard}
 
 	for i := 0; i < b.N; i++ {
 		wb.writeVarInt(math.MaxInt64)

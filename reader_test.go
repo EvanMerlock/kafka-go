@@ -1432,11 +1432,10 @@ func TestConsumerGroupWithMissingTopic(t *testing.T) {
 	defer shutdown()
 
 	w := &Writer{
-		Addr:         TCP(r.config.Brokers...),
-		Topic:        r.config.Topic,
-		BatchTimeout: 10 * time.Millisecond,
-		BatchSize:    1,
-		Transport:    client.Transport,
+		Addr:      TCP(r.config.Brokers...),
+		Topic:     r.config.Topic,
+		BatchSize: 1,
+		Transport: client.Transport,
 	}
 	defer w.Close()
 	if err := w.WriteMessages(ctx, Message{}); err != nil {
@@ -1483,12 +1482,11 @@ func TestConsumerGroupWithTopic(t *testing.T) {
 	defer shutdown()
 
 	w := &Writer{
-		Addr:         TCP(r.config.Brokers...),
-		Topic:        conf.Topic,
-		BatchTimeout: 10 * time.Millisecond,
-		BatchSize:    1,
-		Transport:    client.Transport,
-		Logger:       newTestKafkaLogger(t, "Writer:"),
+		Addr:      TCP(r.config.Brokers...),
+		Topic:     conf.Topic,
+		BatchSize: 1,
+		Transport: client.Transport,
+		Logger:    newTestKafkaLogger(t, "Writer:"),
 	}
 	defer w.Close()
 	if err := w.WriteMessages(ctx, Message{Value: []byte(conf.Topic)}); err != nil {
@@ -1536,12 +1534,11 @@ func TestConsumerGroupWithGroupTopicsSingle(t *testing.T) {
 		defer shutdown()
 
 		w := &Writer{
-			Addr:         TCP(r.config.Brokers...),
-			Topic:        topic,
-			BatchTimeout: 10 * time.Millisecond,
-			BatchSize:    1,
-			Transport:    client.Transport,
-			Logger:       newTestKafkaLogger(t, fmt.Sprintf("Writer(%d):", i)),
+			Addr:      TCP(r.config.Brokers...),
+			Topic:     topic,
+			BatchSize: 1,
+			Transport: client.Transport,
+			Logger:    newTestKafkaLogger(t, fmt.Sprintf("Writer(%d):", i)),
 		}
 		defer w.Close()
 		if err := w.WriteMessages(ctx, Message{Value: []byte(topic)}); err != nil {
@@ -1579,11 +1576,10 @@ func TestConsumerGroupWithGroupTopicsMultple(t *testing.T) {
 	r := NewReader(conf)
 
 	w := &Writer{
-		Addr:         TCP(r.config.Brokers...),
-		BatchTimeout: 10 * time.Millisecond,
-		BatchSize:    1,
-		Transport:    client.Transport,
-		Logger:       newTestKafkaLogger(t, "Writer:"),
+		Addr:      TCP(r.config.Brokers...),
+		BatchSize: 1,
+		Transport: client.Transport,
+		Logger:    newTestKafkaLogger(t, "Writer:"),
 	}
 	defer w.Close()
 

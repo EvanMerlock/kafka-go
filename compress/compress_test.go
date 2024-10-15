@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -151,11 +150,10 @@ func testCompressedMessages(t *testing.T, codec pkg.Codec) {
 		defer shutdown()
 
 		w := &kafka.Writer{
-			Addr:         kafka.TCP("127.0.0.1:9092"),
-			Topic:        topic,
-			Compression:  kafka.Compression(codec.Code()),
-			BatchTimeout: 10 * time.Millisecond,
-			Transport:    client.Transport,
+			Addr:        kafka.TCP("127.0.0.1:9092"),
+			Topic:       topic,
+			Compression: kafka.Compression(codec.Code()),
+			Transport:   client.Transport,
 		}
 		defer w.Close()
 
@@ -301,7 +299,7 @@ func (noopCodec) Name() string {
 }
 
 func (noopCodec) NewReader(r io.Reader) io.ReadCloser {
-	return ioutil.NopCloser(r)
+	return io.NopCloser(r)
 }
 
 func (noopCodec) NewWriter(w io.Writer) io.WriteCloser {
@@ -350,7 +348,7 @@ func BenchmarkCompression(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	payload, err := ioutil.ReadAll(z)
+	payload, err := io.ReadAll(z)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -426,7 +424,7 @@ func benchmarkCompression(b *testing.B, codec pkg.Codec, buf *bytes.Buffer, payl
 			c.Reset(buf.Bytes())
 			r := codec.NewReader(c)
 
-			n, err := io.Copy(ioutil.Discard, r)
+			n, err := io.Copy(io.Discard, r)
 			if err != nil {
 				b.Fatal(err)
 			}

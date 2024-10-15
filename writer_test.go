@@ -55,7 +55,7 @@ func testBatchQueuePutWakesSleepingGetter(t *testing.T) {
 		batch = bq.Get()
 	}()
 	<-ready
-	bq.Put(newWriteBatch(time.Now(), time.Hour*100))
+	bq.Put(newWriteBatch(time.Now()))
 	wg.Wait()
 	if batch == nil {
 		t.Fatal("got nil batch")
@@ -65,7 +65,7 @@ func testBatchQueuePutWakesSleepingGetter(t *testing.T) {
 func testBatchQueuePutAfterCloseFails(t *testing.T) {
 	bq := newBatchQueue(10)
 	bq.Close()
-	if put := bq.Put(newWriteBatch(time.Now(), time.Hour*100)); put {
+	if put := bq.Put(newWriteBatch(time.Now())); put {
 		t.Fatal("put batch into closed queue")
 	}
 }
@@ -73,8 +73,8 @@ func testBatchQueuePutAfterCloseFails(t *testing.T) {
 func testBatchQueueGetWorksAfterClose(t *testing.T) {
 	bq := newBatchQueue(10)
 	enqueueBatches := []*writeBatch{
-		newWriteBatch(time.Now(), time.Hour*100),
-		newWriteBatch(time.Now(), time.Hour*100),
+		newWriteBatch(time.Now()),
+		newWriteBatch(time.Now()),
 	}
 
 	for _, batch := range enqueueBatches {
@@ -993,7 +993,6 @@ func testWriterOverrideConfigStats(t *testing.T) {
 		WriteBackoffMin: 2,
 		WriteBackoffMax: 4,
 		BatchSize:       1024,
-		BatchTimeout:    16,
 		ReadTimeout:     24,
 		WriteTimeout:    32,
 	}

@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -31,9 +31,9 @@ func ExampleNewReader_rackAffinity() {
 }
 
 // findRack is the basic rack resolver strategy for use in AWS.  It supports
-//  * ECS with the task metadata endpoint enabled (returns the container
-//    instance's availability zone)
-//  * Linux EC2 (returns the instance's availability zone)
+//   - ECS with the task metadata endpoint enabled (returns the container
+//     instance's availability zone)
+//   - Linux EC2 (returns the instance's availability zone)
 func findRack() string {
 	switch whereAmI() {
 	case "ecs":
@@ -57,7 +57,7 @@ func whereAmI() string {
 		"/sys/devices/virtual/dmi/id/product_uuid",
 		"/sys/hypervisor/uuid",
 	} {
-		b, err := ioutil.ReadFile(path)
+		b, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
@@ -113,7 +113,7 @@ func ec2AvailabilityZone() string {
 		return ""
 	}
 	defer r.Body.Close()
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		return ""
 	}

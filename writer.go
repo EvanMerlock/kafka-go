@@ -1,4 +1,4 @@
-package kafka
+package kafkawriter
 
 import (
 	"bytes"
@@ -123,12 +123,6 @@ type Writer struct {
 	//
 	// The default is to use a kafka default value of 1048576.
 	BatchBytes int64
-
-	// Time limit on how often incomplete message batches will be flushed to
-	// kafka.
-	//
-	// The default is to flush at least every second.
-	BatchTimeout time.Duration
 
 	// Timeout for read operations performed by the Writer.
 	//
@@ -493,7 +487,6 @@ func NewWriter(config WriterConfig) *Writer {
 		BatchSize:    config.BatchSize,
 		Balancer:     config.Balancer,
 		BatchBytes:   int64(config.BatchBytes),
-		BatchTimeout: config.BatchTimeout,
 		ReadTimeout:  config.ReadTimeout,
 		WriteTimeout: config.WriteTimeout,
 		RequiredAcks: RequiredAcks(config.RequiredAcks),
@@ -822,13 +815,6 @@ func (w *Writer) batchBytes() int64 {
 	return 1048576
 }
 
-func (w *Writer) batchTimeout() time.Duration {
-	if w.BatchTimeout > 0 {
-		return w.BatchTimeout
-	}
-	return 1 * time.Second
-}
-
 func (w *Writer) readTimeout() time.Duration {
 	if w.ReadTimeout > 0 {
 		return w.ReadTimeout
@@ -895,7 +881,6 @@ func (w *Writer) Stats() WriterStats {
 		WriteBackoffMin: w.writeBackoffMin(),
 		WriteBackoffMax: w.writeBackoffMax(),
 		MaxBatchSize:    int64(w.batchSize()),
-		BatchTimeout:    w.batchTimeout(),
 		ReadTimeout:     w.readTimeout(),
 		WriteTimeout:    w.writeTimeout(),
 		RequiredAcks:    int64(w.RequiredAcks),
@@ -1059,43 +1044,20 @@ func (ptw *partitionWriter) writeMessages(msgs []Message, indexes []int32) map[*
 			batches[batch] = append(batches[batch], i)
 		}
 	}
+
+	// send any partial batches right away, don't wait
+	if !ptw.currBatch.empty() {
+		ptw.currBatch.trigger()
+		ptw.queue.Put(ptw.currBatch)
+		ptw.currBatch = nil
+	}
+
 	return batches
 }
 
 // ptw.w can be accessed here because this is called with the lock ptw.mutex already held.
 func (ptw *partitionWriter) newWriteBatch() *writeBatch {
-	batch := newWriteBatch(time.Now(), ptw.w.batchTimeout())
-	ptw.w.spawn(func() { ptw.awaitBatch(batch) })
-	return batch
-}
-
-// awaitBatch waits for a batch to either fill up or time out.
-// If the batch is full it only stops the timer, if the timer
-// expires it will queue the batch for writing if needed.
-func (ptw *partitionWriter) awaitBatch(batch *writeBatch) {
-	select {
-	case <-batch.timer.C:
-		ptw.mutex.Lock()
-		// detach the batch from the writer if we're still attached
-		// and queue for writing.
-		// Only the current batch can expire, all previous batches were already written to the queue.
-		// If writeMesseages locks pw.mutex after the timer fires but before this goroutine
-		// can lock pw.mutex it will either have filled the batch and enqueued it which will mean
-		// pw.currBatch != batch so we just move on.
-		// Otherwise, we detach the batch from the ptWriter and enqueue it for writing.
-		if ptw.currBatch == batch {
-			ptw.queue.Put(batch)
-			ptw.currBatch = nil
-		}
-		ptw.mutex.Unlock()
-	case <-batch.ready:
-		// The batch became full, it was removed from the ptwriter and its
-		// ready channel was closed. We need to close the timer to avoid
-		// having it leak until it expires.
-		batch.timer.Stop()
-	}
-	stats := ptw.w.stats()
-	stats.batchQueueTime.observe(int64(time.Since(batch.time)))
+	return newWriteBatch(time.Now())
 }
 
 func (ptw *partitionWriter) writeBatch(batch *writeBatch) {
@@ -1205,16 +1167,14 @@ type writeBatch struct {
 	bytes int64
 	ready chan struct{}
 	done  chan struct{}
-	timer *time.Timer
 	err   error // result of the batch completion
 }
 
-func newWriteBatch(now time.Time, timeout time.Duration) *writeBatch {
+func newWriteBatch(now time.Time) *writeBatch {
 	return &writeBatch{
 		time:  now,
 		ready: make(chan struct{}),
 		done:  make(chan struct{}),
-		timer: time.NewTimer(timeout),
 	}
 }
 
@@ -1237,6 +1197,15 @@ func (b *writeBatch) add(msg Message, maxSize int, maxBytes int64) bool {
 
 func (b *writeBatch) full(maxSize int, maxBytes int64) bool {
 	return b.size >= maxSize || b.bytes >= maxBytes
+}
+
+// empty returns if the batch has any data in it.
+func (b *writeBatch) empty() bool {
+	if b == nil {
+		return true
+	}
+
+	return b.size == 0
 }
 
 func (b *writeBatch) trigger() {

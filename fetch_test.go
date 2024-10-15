@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"reflect"
 	"testing"
@@ -190,11 +189,11 @@ func readRecords(records RecordReader) ([]memoryRecord, error) {
 		)
 
 		if key != nil {
-			bytesKey, _ = ioutil.ReadAll(key)
+			bytesKey, _ = io.ReadAll(key)
 		}
 
 		if value != nil {
-			bytesValues, _ = ioutil.ReadAll(value)
+			bytesValues, _ = io.ReadAll(value)
 		}
 
 		list = append(list, memoryRecord{
