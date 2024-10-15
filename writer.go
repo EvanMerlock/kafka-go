@@ -1059,6 +1059,14 @@ func (ptw *partitionWriter) writeMessages(msgs []Message, indexes []int32) map[*
 			batches[batch] = append(batches[batch], i)
 		}
 	}
+
+	// send any partial batches right away, don't wait
+	if !ptw.currBatch.empty() {
+		ptw.currBatch.trigger()
+		ptw.queue.Put(ptw.currBatch)
+		ptw.currBatch = nil
+	}
+
 	return batches
 }
 
@@ -1237,6 +1245,11 @@ func (b *writeBatch) add(msg Message, maxSize int, maxBytes int64) bool {
 
 func (b *writeBatch) full(maxSize int, maxBytes int64) bool {
 	return b.size >= maxSize || b.bytes >= maxBytes
+}
+
+// empty returns if the batch has any data in it.
+func (b *writeBatch) empty() bool {
+	return b.size == 0
 }
 
 func (b *writeBatch) trigger() {
